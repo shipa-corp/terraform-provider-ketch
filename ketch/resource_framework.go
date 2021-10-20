@@ -2,11 +2,13 @@ package ketch
 
 import (
 	"context"
-	"github.com/brunoa19/ketch-terraform-provider/client"
-	"github.com/brunoa19/ketch-terraform-provider/helper"
+	"log"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+
+	"github.com/brunoa19/ketch-terraform-provider/client"
+	"github.com/brunoa19/ketch-terraform-provider/helper"
 )
 
 var (
@@ -44,29 +46,20 @@ func resourceFramework() *schema.Resource {
 		UpdateContext: resourceFrameworkUpdate,
 		DeleteContext: resourceFrameworkDelete,
 		Schema: map[string]*schema.Schema{
-			"framework": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+			"name": {
+				Type:     schema.TypeString,
 				Required: true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"name": {
-							Type:     schema.TypeString,
-							Required: true,
-							ForceNew: true,
-						},
-						"namespace": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
-						"app_quota_limit": {
-							Type:     schema.TypeInt,
-							Optional: true,
-						},
-						"ingress_controller": schemaIngressController,
-					},
-				},
+				ForceNew: true,
 			},
+			"namespace": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"app_quota_limit": {
+				Type:     schema.TypeInt,
+				Optional: true,
+			},
+			"ingress_controller": schemaIngressController,
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -74,17 +67,19 @@ func resourceFramework() *schema.Resource {
 	}
 }
 
+func extractFramework(d *schema.ResourceData) *client.Framework {
+	raw := d.Get("")
+	var framework client.Framework
+	helper.TerraformToStruct(raw, &framework)
+	return &framework
+}
+
 func resourceFrameworkCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	// Warning or errors can be collected in a slice type
 	var diags diag.Diagnostics
 
-	raw := d.Get("framework").([]interface{})[0].(map[string]interface{})
-
-	framework := &client.Framework{}
-	helper.TerraformToStruct(raw, framework)
-
-	log.Printf("RAW framework: %+v\n", raw)
-	log.Printf("CONVERTED framework: %+v\n", *framework)
+	framework := extractFramework(d)
+	log.Printf("CONVERTED create framework: %+v %+v\n", framework, framework.IngressController)
 
 	c := m.(*client.Client)
 	err := c.CreateFramework(ctx, framework)
@@ -111,7 +106,20 @@ func resourceFrameworkRead(ctx context.Context, d *schema.ResourceData, m interf
 		return diag.FromErr(err)
 	}
 
-	if err = d.Set("framework", helper.StructToTerraform(framework)); err != nil {
+	err = d.Set("name", framework.Name)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("namespace", framework.Namespace)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("app_quota_limit", framework.AppQuotaLimit)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("ingress_controller", helper.StructToTerraform(framework.IngressController))
+	if err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -119,16 +127,13 @@ func resourceFrameworkRead(ctx context.Context, d *schema.ResourceData, m interf
 }
 
 func resourceFrameworkUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	if !d.HasChange("framework") {
+	if !d.HasChange("") {
 		return resourceFrameworkRead(ctx, d, m)
 	}
 
-	raw := d.Get("framework").([]interface{})[0].(map[string]interface{})
+	framework := extractFramework(d)
 
-	framework := &client.Framework{}
-	helper.TerraformToStruct(raw, framework)
-
-	log.Printf("RAW framework: %+v\n", raw)
+	log.Printf("CONVERTED framework: %+v\n", framework)
 
 	c := m.(*client.Client)
 	err := c.UpdateFramework(ctx, framework)

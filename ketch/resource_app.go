@@ -4,10 +4,11 @@ import (
 	"context"
 	"log"
 
-	"github.com/brunoa19/ketch-terraform-provider/client"
-	"github.com/brunoa19/ketch-terraform-provider/helper"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/brunoa19/ketch-terraform-provider/client"
+	"github.com/brunoa19/ketch-terraform-provider/helper"
 )
 
 var (
@@ -45,56 +46,49 @@ var (
 		},
 	}
 
-	schemaApp = &schema.Schema{
-		Type:     schema.TypeList,
-		Required: true,
-		MaxItems: 1,
-		Elem: &schema.Resource{
-			Schema: map[string]*schema.Schema{
-				// Required
-				"name": {
-					Type:     schema.TypeString,
-					Required: true,
-					ForceNew: true,
-				},
-				"image": {
-					Type:     schema.TypeString,
-					Required: true,
-				},
-				"framework": {
-					Type:     schema.TypeString,
-					Required: true,
-				},
+	schemaApp = map[string]*schema.Schema{
+		// Required
+		"name": {
+			Type:     schema.TypeString,
+			Required: true,
+			ForceNew: true,
+		},
+		"image": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"framework": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
 
-				// Optional
-				"cnames": {
-					Type:     schema.TypeList,
-					Optional: true,
-					Elem: &schema.Schema{
-						Type: schema.TypeString,
-					},
-				},
-				"ports": {
-					Type:     schema.TypeList,
-					Optional: true,
-					Elem: &schema.Schema{
-						Type: schema.TypeInt,
-					},
-				},
-				"units": {
-					Type:     schema.TypeInt,
-					Optional: true,
-				},
-
-				"processes": processesSchema,
-
-				"routing_settings": routingSettingsSchema,
-
-				"version": {
-					Type:     schema.TypeInt,
-					Optional: true,
-				},
+		// Optional
+		"cnames": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem: &schema.Schema{
+				Type: schema.TypeString,
 			},
+		},
+		"ports": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem: &schema.Schema{
+				Type: schema.TypeInt,
+			},
+		},
+		"units": {
+			Type:     schema.TypeInt,
+			Optional: true,
+		},
+
+		"processes": processesSchema,
+
+		"routing_settings": routingSettingsSchema,
+
+		"version": {
+			Type:     schema.TypeInt,
+			Optional: true,
 		},
 	}
 )
@@ -105,23 +99,26 @@ func resourceApp() *schema.Resource {
 		ReadContext:   resourceAppRead,
 		UpdateContext: resourceAppUpdate,
 		DeleteContext: resourceAppDelete,
-		Schema: map[string]*schema.Schema{
-			"app": schemaApp,
-		},
+		Schema:        schemaApp,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 	}
 }
 
+func extractApp(d *schema.ResourceData) *client.App {
+	raw := d.Get("")
+	var app client.App
+	helper.TerraformToStruct(raw, &app)
+	return &app
+}
+
 func resourceAppCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	// Warning or errors can be collected in a slice type
 	var diags diag.Diagnostics
 
-	raw := d.Get("app").([]interface{})[0].(map[string]interface{})
-	app := &client.App{}
-
-	helper.TerraformToStruct(raw, app)
+	app := extractApp(d)
+	log.Printf("CONVERTED app: %+v\n", app)
 
 	c := m.(*client.Client)
 	err := c.CreateApp(ctx, app)
@@ -148,23 +145,52 @@ func resourceAppRead(ctx context.Context, d *schema.ResourceData, m interface{})
 		return diag.FromErr(err)
 	}
 
-	if err = d.Set("app", helper.StructToTerraform(app)); err != nil {
+	err = d.Set("name", app.Name)
+	if err != nil {
 		return diag.FromErr(err)
 	}
-
+	err = d.Set("image", app.Image)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("framework", app.Framework)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("cnames", app.Cname)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("ports", app.Ports)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("units", app.Units)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("processes", helper.StructToTerraform(&app.Processes))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("routing_settings", helper.StructToTerraform(app.RoutingSettings))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	err = d.Set("version", app.Version)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	return diags
 }
 
 func resourceAppUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	if !d.HasChange("app") {
+	if !d.HasChange("") {
 		return resourceAppRead(ctx, d, m)
 	}
 
-	raw := d.Get("app").([]interface{})[0].(map[string]interface{})
-	app := &client.App{}
-	helper.TerraformToStruct(raw, app)
+	app := extractApp(d)
 
-	log.Printf(" ### RAW app data: %+v\n", raw)
 	log.Printf(" ### CONVERTED app data: %+v\n", *app)
 
 	c := m.(*client.Client)
