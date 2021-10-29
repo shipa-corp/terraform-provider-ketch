@@ -57,7 +57,6 @@ func TerraformToStruct(source interface{}, target interface{}) {
 				continue
 			}
 
-
 			targetValue := tVal.Field(i)
 			//log.Printf("val: %+v, type: %t\n", val, val)
 			targetValue.Set(convertVal(sourceValue, targetValue))
@@ -133,15 +132,15 @@ func convertVal(from, to reflect.Value) reflect.Value {
 				// case when we have basic types
 				case reflect.String, reflect.Bool, reflect.Int, reflect.Int64, reflect.Float64:
 					item = from.MapIndex(key).Elem()
-				//default:
-				//	// case when we have pointer elements
-				//	if to.Type().Elem().Kind() == reflect.Ptr {
-				//		item = reflect.New(to.Type().Elem().Elem())
-				//	} else {
-				//		item = reflect.New(to.Type().Elem())
-				//	}
-				//
-				//	item = convertVal(from.Index(i), item)
+					//default:
+					//	// case when we have pointer elements
+					//	if to.Type().Elem().Kind() == reflect.Ptr {
+					//		item = reflect.New(to.Type().Elem().Elem())
+					//	} else {
+					//		item = reflect.New(to.Type().Elem())
+					//	}
+					//
+					//	item = convertVal(from.Index(i), item)
 				}
 
 				// if target slice is not slice of pointers
@@ -155,8 +154,6 @@ func convertVal(from, to reflect.Value) reflect.Value {
 			return m
 		}
 	}
-
-
 
 	if to.Kind() == reflect.Ptr {
 		if to.IsNil() {
