@@ -42,3 +42,4 @@ signs:
       - "${signature}"
       - "--detach-sign"
       - "${artifact}"
+      
